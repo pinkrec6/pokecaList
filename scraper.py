@@ -257,6 +257,25 @@ def fetch_detail(card_id):
 
 # ---------- データ保存・更新 ----------
 
+MARKS_FILE = os.path.join(DATA_DIR, "marks.json")
+
+
+def load_marks():
+    if os.path.exists(MARKS_FILE):
+        with open(MARKS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {"sets": {}, "cards": {}}
+
+
+def apply_mark(card, marks):
+    """レギュレーションマークを付与。基本エネはマーク不問で常時使用可。"""
+    if card.get("category") == "energy" and str(card.get("name", "")).startswith("基本"):
+        card["mark"] = "基本"
+        return
+    m = marks["cards"].get(str(card["id"])) or marks["sets"].get(card.get("set") or "")
+    card["mark"] = m or "?"
+
+
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, encoding="utf-8") as f:
@@ -304,6 +323,8 @@ def update(progress=None, limit=None):
     lock = threading.Lock()
     done = [0]
 
+    marks = load_marks()
+
     def work(cid):
         card = fetch_detail(cid)
         # 一覧側の情報で補完
@@ -312,6 +333,7 @@ def update(progress=None, limit=None):
         card.setdefault("img", info["img"])
         if card["category"] != info["category"]:
             card["category"] = info["category"]
+        apply_mark(card, marks)
         return card
 
     if added_ids:

@@ -9,46 +9,101 @@ let currentTab = "pokemon";
 let renderList = [];        // フィルタ・ソート適用後
 let renderedCount = 0;
 
-// ---------- 列定義 ----------
+// ---------- タイプバッジ ----------
+const TYPE_BADGE = {
+  "草": ["草", "#3f9c35", "#fff"], "炎": ["炎", "#e03a3e", "#fff"], "水": ["水", "#2492d1", "#fff"],
+  "雷": ["雷", "#f5c500", "#413000"], "超": ["超", "#8e44ad", "#fff"], "闘": ["闘", "#b15a28", "#fff"],
+  "悪": ["悪", "#31475e", "#fff"], "鋼": ["鋼", "#8b98a4", "#fff"], "フェアリー": ["妖", "#e86190", "#fff"],
+  "ドラゴン": ["竜", "#b8973d", "#fff"], "無": ["無", "#dcdcd0", "#4c4c44"],
+};
+
+function badge(t) {
+  const b = TYPE_BADGE[t];
+  const s = document.createElement("span");
+  s.className = "tb";
+  if (b) {
+    s.textContent = b[0];
+    s.style.background = b[1];
+    s.style.color = b[2];
+    s.title = t;
+  } else {
+    s.textContent = t;
+  }
+  return s;
+}
+
+// "【草】【無】×2" のような文字列を バッジ+テキスト でDOM化
+function renderTyped(container, str) {
+  const parts = String(str ?? "").split(/【(.+?)】/);
+  parts.forEach((p, i) => {
+    if (!p) return;
+    if (i % 2 === 1) container.appendChild(badge(p));
+    else container.appendChild(document.createTextNode(p));
+  });
+}
+
 const fmtCost = (cost) => (cost || []).map((t) => `【${t}】`).join("");
 const move = (c, i) => (c.moves && c.moves[i]) || {};
-const abil = (c, i) => (c.abilities && c.abilities[i]) || {};
+
+// 技エネ構成（フィルタ・表示用の値）。技なし→""、エネ0の技→"（エネ0）"
+function costKey(c, i) {
+  const m = c.moves && c.moves[i];
+  if (!m) return "";
+  if (!m.cost || m.cost.length === 0) return "（エネ0）";
+  return fmtCost(m.cost);
+}
+
+const stripBrackets = (s) => String(s).replace(/[【】]/g, "");
+
+// ---------- 列定義 ----------
+// type: none | text(テキスト+候補) | set(候補) | range(数値範囲)
+// render: セルDOM描画（省略時はテキスト）
+const typedRender = (get) => (c, td) => renderTyped(td, get(c));
 
 const COLUMNS = {
   pokemon: [
     { key: "img", label: "画像", type: "none" },
+    { key: "mark", label: "レギュ", type: "set", get: (c) => c.mark || "?", cls: "nowrap" },
     { key: "stage", label: "区分", type: "set", get: (c) => c.stage || "" },
     { key: "name", label: "ポケモン名", type: "text", get: (c) => c.name || "", cls: "nowrap" },
-    { key: "type", label: "タイプ", type: "set", get: (c) => c.type || "" },
+    { key: "type", label: "タイプ", type: "set", get: (c) => c.type || "",
+      render: (c, td) => { if (c.type) td.appendChild(badge(c.type)); } },
     { key: "hp", label: "HP", type: "range", get: (c) => c.hp ?? "", cls: "num" },
     { key: "abilityName", label: "特性名", type: "text", get: (c) => (c.abilities || []).map((a) => a.name).join(" / "), cls: "nowrap" },
     { key: "abilityText", label: "特性効果", type: "text", get: (c) => (c.abilities || []).map((a) => a.text).join("\n"), cls: "clip" },
-    { key: "m1cost", label: "技1エネ", type: "set", get: (c) => move(c, 0).cost || [], fmt: (v) => fmtCost(v), cls: "nowrap" },
+    { key: "m1cost", label: "技1エネ", type: "set", get: (c) => costKey(c, 0), cls: "nowrap",
+      searchNorm: stripBrackets, render: (c, td) => renderTyped(td, costKey(c, 0)) },
     { key: "m1name", label: "技1名", type: "text", get: (c) => move(c, 0).name || "", cls: "nowrap" },
     { key: "m1dmg", label: "技1ダメージ", type: "text", get: (c) => move(c, 0).damage || "", cls: "num" },
     { key: "m1text", label: "技1効果", type: "text", get: (c) => move(c, 0).text || "", cls: "clip" },
-    { key: "m2cost", label: "技2エネ", type: "set", get: (c) => move(c, 1).cost || [], fmt: (v) => fmtCost(v), cls: "nowrap" },
+    { key: "m2cost", label: "技2エネ", type: "set", get: (c) => costKey(c, 1), cls: "nowrap",
+      searchNorm: stripBrackets, render: (c, td) => renderTyped(td, costKey(c, 1)) },
     { key: "m2name", label: "技2名", type: "text", get: (c) => move(c, 1).name || "", cls: "nowrap" },
     { key: "m2dmg", label: "技2ダメージ", type: "text", get: (c) => move(c, 1).damage || "", cls: "num" },
     { key: "m2text", label: "技2効果", type: "text", get: (c) => move(c, 1).text || "", cls: "clip" },
-    { key: "weakness", label: "弱点", type: "set", get: (c) => c.weakness || "--", cls: "nowrap" },
-    { key: "resistance", label: "抵抗力", type: "set", get: (c) => c.resistance || "--", cls: "nowrap" },
+    { key: "weakness", label: "弱点", type: "set", get: (c) => c.weakness || "--", cls: "nowrap",
+      searchNorm: stripBrackets, render: typedRender((c) => c.weakness || "--") },
+    { key: "resistance", label: "抵抗力", type: "set", get: (c) => c.resistance || "--", cls: "nowrap",
+      searchNorm: stripBrackets, render: typedRender((c) => c.resistance || "--") },
     { key: "retreat", label: "逃げエネ", type: "set", get: (c) => (c.retreat ?? "") === "" ? "" : String(c.retreat), cls: "num" },
-    { key: "set", label: "レギュレーション", type: "set", get: (c) => c.set || "", cls: "nowrap" },
+    { key: "set", label: "収録", type: "set", get: (c) => c.set || "", cls: "nowrap" },
   ],
   trainer: [
     { key: "img", label: "画像", type: "none" },
+    { key: "mark", label: "レギュ", type: "set", get: (c) => c.mark || "?", cls: "nowrap" },
     { key: "trainerType", label: "区分", type: "set", get: (c) => c.trainerType || "" },
     { key: "name", label: "カード名", type: "text", get: (c) => c.name || "", cls: "nowrap" },
     { key: "text", label: "効果", type: "text", get: (c) => c.text || "" },
-    { key: "set", label: "レギュレーション", type: "set", get: (c) => c.set || "", cls: "nowrap" },
+    { key: "set", label: "収録", type: "set", get: (c) => c.set || "", cls: "nowrap" },
   ],
   energy: [
     { key: "img", label: "画像", type: "none" },
+    { key: "mark", label: "レギュ", type: "set", get: (c) => c.mark || "?", cls: "nowrap" },
     { key: "name", label: "エネルギー名", type: "text", get: (c) => c.name || "", cls: "nowrap" },
-    { key: "types", label: "タイプ", type: "set", get: (c) => c.types || [], fmt: (v) => fmtCost(v), cls: "nowrap" },
+    { key: "types", label: "タイプ", type: "set", get: (c) => c.types || [], fmt: (v) => fmtCost(v), cls: "nowrap",
+      searchNorm: stripBrackets, render: (c, td) => (c.types || []).forEach((t) => td.appendChild(badge(t))) },
     { key: "text", label: "効果", type: "text", get: (c) => c.text || "" },
-    { key: "set", label: "レギュレーション", type: "set", get: (c) => c.set || "", cls: "nowrap" },
+    { key: "set", label: "収録", type: "set", get: (c) => c.set || "", cls: "nowrap" },
   ],
 };
 
@@ -69,6 +124,13 @@ function matchText(value, query) {
   return query.toLowerCase().split(/\s+/).filter(Boolean).every((q) => hay.includes(q));
 }
 
+function setValueKeys(col, c) {
+  // set型フィルタ用のキー（配列は各要素、スカラは文字列1つ）
+  const v = col.get(c);
+  if (Array.isArray(v)) return v.length ? v.map(String) : ["(なし)"];
+  return [v === "" ? "(なし)" : String(v)];
+}
+
 function applyFilters(tab) {
   const cols = COLUMNS[tab];
   const st = state[tab];
@@ -81,17 +143,14 @@ function applyFilters(tab) {
   for (const col of cols) {
     const f = st.filters[col.key];
     if (!f || !col.get) continue;
-    if (col.type === "text" && f.q) {
-      rows = rows.filter((c) => matchText(col.get(c), f.q));
-    } else if (col.type === "set" && f.selected) {
-      rows = rows.filter((c) => {
-        const v = col.get(c);
-        if (Array.isArray(v)) {
-          if (v.length === 0) return f.selected.has("(なし)");
-          return v.some((x) => f.selected.has(x));
-        }
-        return f.selected.has(v === "" ? "(なし)" : String(v));
+    if (col.type === "text") {
+      if (f.q) rows = rows.filter((c) => matchText(col.get(c), f.q));
+      if (f.selected) rows = rows.filter((c) => {
+        const v = String(col.get(c));
+        return f.selected.has(v === "" ? "(なし)" : v);
       });
+    } else if (col.type === "set" && f.selected) {
+      rows = rows.filter((c) => setValueKeys(col, c).some((k) => f.selected.has(k)));
     } else if (col.type === "range" && (f.min != null || f.max != null)) {
       rows = rows.filter((c) => {
         const v = Number(col.get(c));
@@ -109,8 +168,8 @@ function applyFilters(tab) {
       const dir = st.sort.dir;
       rows = rows.slice().sort((a, b) => {
         let va = col.get(a), vb = col.get(b);
-        if (Array.isArray(va)) va = va.length; // エネ個数でソート
-        if (Array.isArray(vb)) vb = vb.length;
+        if (Array.isArray(va)) va = va.join("");
+        if (Array.isArray(vb)) vb = vb.join("");
         const na = Number(va), nb = Number(vb);
         const bothNum = va !== "" && vb !== "" && !Number.isNaN(na) && !Number.isNaN(nb);
         let r;
@@ -190,7 +249,13 @@ function cardRow(c) {
       im.loading = "lazy";
       im.src = BASE + (c.img || "");
       im.alt = c.name || "";
+      im.title = "クリックで拡大";
+      td.className = "img-cell";
       td.appendChild(im);
+      td.addEventListener("click", () => showCardModal(c));
+    } else if (col.render) {
+      col.render(c, td);
+      if (col.cls) td.className = col.cls;
     } else {
       const v = col.get(c);
       td.textContent = col.fmt ? col.fmt(v) : v;
@@ -198,7 +263,6 @@ function cardRow(c) {
     }
     tr.appendChild(td);
   }
-  tr.addEventListener("click", () => showCardModal(c));
   return tr;
 }
 
@@ -240,6 +304,86 @@ function closePopup() {
   if (popupCleanup) { popupCleanup(); popupCleanup = null; }
 }
 
+// 一意な値の候補リスト（チェックボックス）を作る。set/text 共用。
+function buildChecklist(col, current) {
+  const counts = new Map();
+  for (const c of tabCards(currentTab)) {
+    for (const k of setValueKeys(col, c)) counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const values = [...counts.keys()].sort((a, b) => {
+    const na = Number(a), nb = Number(b);
+    if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+    return String(a).localeCompare(String(b), "ja");
+  });
+
+  const wrap = document.createElement("div");
+  const search = document.createElement("input");
+  search.type = "search";
+  search.placeholder = "候補を検索";
+  wrap.appendChild(search);
+
+  const selRow = document.createElement("div");
+  selRow.className = "select-all-row";
+  const btnAll = document.createElement("button");
+  btnAll.className = "link-btn"; btnAll.type = "button"; btnAll.textContent = "表示中をすべて選択";
+  const btnNone = document.createElement("button");
+  btnNone.className = "link-btn"; btnNone.type = "button"; btnNone.textContent = "すべて解除";
+  selRow.append(btnAll, btnNone);
+  wrap.appendChild(selRow);
+
+  const list = document.createElement("div");
+  list.className = "checklist";
+  const boxes = [];
+  const norm = col.searchNorm || ((s) => s);
+  const LIMIT = 1200;
+  const note = document.createElement("div");
+  note.className = "note";
+  wrap.appendChild(list);
+  wrap.appendChild(note);
+
+  function renderItems(q) {
+    list.replaceChildren();
+    boxes.length = 0;
+    let shown = 0;
+    for (const v of values) {
+      if (q && !norm(String(v)).toLowerCase().includes(q)) continue;
+      if (shown >= LIMIT) { shown++; continue; }
+      const lab = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = v;
+      cb.checked = current.selected ? current.selected.has(v) : true;
+      lab.appendChild(cb);
+      const txt = document.createElement("span");
+      txt.className = "cl-text";
+      if (col.render && v !== "(なし)") renderTyped(txt, v);
+      else txt.textContent = v;
+      lab.appendChild(txt);
+      lab.append(` (${counts.get(v)})`);
+      list.appendChild(lab);
+      boxes.push({ cb, v });
+      shown++;
+    }
+    note.textContent = shown > LIMIT ? `候補が多いため先頭${LIMIT}件のみ表示中。検索で絞り込んでください。` : "";
+  }
+  renderItems("");
+  search.addEventListener("input", () => renderItems(norm(search.value).toLowerCase()));
+  btnAll.addEventListener("click", () => boxes.forEach((b) => { b.cb.checked = true; }));
+  btnNone.addEventListener("click", () => boxes.forEach((b) => { b.cb.checked = false; }));
+
+  return {
+    el: wrap,
+    // 表示されていない候補は現状のチェック状態を維持する
+    getSelected() {
+      const sel = current.selected ? new Set(current.selected) : new Set(values);
+      for (const b of boxes) {
+        if (b.cb.checked) sel.add(b.v); else sel.delete(b.v);
+      }
+      return { sel, all: sel.size >= values.length && values.every((v) => sel.has(v)) };
+    },
+  };
+}
+
 function openFilterPopup(col, anchor) {
   closePopup();
   const st = state[currentTab];
@@ -258,74 +402,25 @@ function openFilterPopup(col, anchor) {
     input.placeholder = "含む文字列（スペース区切りでAND）";
     input.value = f.q || "";
     popup.appendChild(input);
+    const checklist = buildChecklist(col, f);
+    popup.appendChild(checklist.el);
     apply = () => {
-      st.filters[col.key] = input.value.trim() ? { q: input.value.trim() } : undefined;
-      if (!st.filters[col.key]) delete st.filters[col.key];
+      const { sel, all } = checklist.getSelected();
+      const q = input.value.trim();
+      if (!q && all) { delete st.filters[col.key]; return; }
+      st.filters[col.key] = { q: q || undefined, selected: all ? undefined : sel };
     };
     setTimeout(() => input.focus(), 0);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { apply(); closePopup(); refresh(); }
     });
   } else if (col.type === "set") {
-    // 一意な値を収集
-    const counts = new Map();
-    for (const c of tabCards(currentTab)) {
-      let v = col.get(c);
-      if (Array.isArray(v)) {
-        if (v.length === 0) v = ["(なし)"];
-        for (const x of v) counts.set(x, (counts.get(x) || 0) + 1);
-      } else {
-        const k = v === "" ? "(なし)" : String(v);
-        counts.set(k, (counts.get(k) || 0) + 1);
-      }
-    }
-    const values = [...counts.keys()].sort((a, b) => {
-      const na = Number(a), nb = Number(b);
-      if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
-      return String(a).localeCompare(String(b), "ja");
-    });
-
-    const search = document.createElement("input");
-    search.type = "search";
-    search.placeholder = "選択肢を検索";
-    popup.appendChild(search);
-
-    const selRow = document.createElement("div");
-    selRow.className = "select-all-row";
-    const btnAll = document.createElement("button");
-    btnAll.className = "link-btn"; btnAll.textContent = "すべて選択";
-    const btnNone = document.createElement("button");
-    btnNone.className = "link-btn"; btnNone.textContent = "すべて解除";
-    selRow.append(btnAll, btnNone);
-    popup.appendChild(selRow);
-
-    const list = document.createElement("div");
-    list.className = "checklist";
-    const boxes = [];
-    for (const v of values) {
-      const lab = document.createElement("label");
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.value = v;
-      cb.checked = f.selected ? f.selected.has(v) : true;
-      lab.appendChild(cb);
-      lab.append(` ${v} (${counts.get(v)})`);
-      list.appendChild(lab);
-      boxes.push({ cb, lab, v });
-    }
-    popup.appendChild(list);
-
-    search.addEventListener("input", () => {
-      const q = search.value.toLowerCase();
-      for (const b of boxes) b.lab.style.display = String(b.v).toLowerCase().includes(q) ? "" : "none";
-    });
-    btnAll.addEventListener("click", () => boxes.forEach((b) => { if (b.lab.style.display !== "none") b.cb.checked = true; }));
-    btnNone.addEventListener("click", () => boxes.forEach((b) => { if (b.lab.style.display !== "none") b.cb.checked = false; }));
-
+    const checklist = buildChecklist(col, f);
+    popup.appendChild(checklist.el);
     apply = () => {
-      const selected = new Set(boxes.filter((b) => b.cb.checked).map((b) => b.v));
-      if (selected.size === values.length) delete st.filters[col.key];
-      else st.filters[col.key] = { selected };
+      const { sel, all } = checklist.getSelected();
+      if (all) delete st.filters[col.key];
+      else st.filters[col.key] = { selected: sel };
     };
   } else if (col.type === "range") {
     const row = document.createElement("div");
@@ -383,7 +478,7 @@ function showCardModal(c) {
   const url = `${BASE}/card-search/details.php/card/${c.id}/regu/XY`;
   let html = `<img class="card-img" src="${BASE}${esc(c.img || "")}" alt=""><div class="card-detail">`;
   html += `<h2>${esc(c.name)}</h2>`;
-  html += `<p class="meta">${esc(c.set || "")} ${esc(c.number || "")} ${c.rarity ? "／レア度: " + esc(c.rarity) : ""}</p>`;
+  html += `<p class="meta">レギュ: ${esc(c.mark || "?")}　収録: ${esc(c.set || "-")} ${esc(c.number || "")} ${c.rarity ? "／レア度: " + esc(c.rarity) : ""}</p>`;
   if (c.category === "pokemon") {
     html += `<p>${esc(c.stage || "")}　${c.type ? "タイプ:【" + esc(c.type) + "】" : ""}　${c.hp ? "HP: " + c.hp : ""}</p>`;
     for (const a of c.abilities || []) html += `<h4>特性: ${esc(a.name)}</h4><p>${esc(a.text)}</p>`;
