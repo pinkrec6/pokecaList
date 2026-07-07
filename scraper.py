@@ -5,6 +5,7 @@
   詳細ページ (details.php) を取得してパースする。
 - データは data/cards.json に保存する。
 """
+import datetime
 import html
 import json
 import os
@@ -267,13 +268,26 @@ def load_marks():
     return {"sets": {}, "cards": {}}
 
 
+# レギュレーションマークは年ごとにアルファベットが1つ進む
+# （2026年発売分＝Jレギュ、2027年＝K、2028年＝L…）。
+# marks.json（画像目視で作成した確定表）に載っていない新セットは
+# この規則で自動算出し、「?」にはしない。
+MARK_BASE_YEAR = 2026
+MARK_BASE_LETTER = "J"
+
+
+def mark_for_year(year=None):
+    year = year or datetime.date.today().year
+    return chr(ord(MARK_BASE_LETTER) + (year - MARK_BASE_YEAR))
+
+
 def apply_mark(card, marks):
     """レギュレーションマークを付与。基本エネはマーク不問で常時使用可。"""
     if card.get("category") == "energy" and str(card.get("name", "")).startswith("基本"):
         card["mark"] = "基本"
         return
     m = marks["cards"].get(str(card["id"])) or marks["sets"].get(card.get("set") or "")
-    card["mark"] = m or "?"
+    card["mark"] = m or mark_for_year()
 
 
 def load_data():

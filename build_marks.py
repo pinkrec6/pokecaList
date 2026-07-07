@@ -11,10 +11,14 @@
 """
 import json
 import os
+import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "docs", "data", "cards.json")
 MARKS = os.path.join(ROOT, "docs", "data", "marks.json")
+
+sys.path.insert(0, ROOT)
+from scraper import mark_for_year  # noqa: E402
 
 SETS = {}
 for s in ("SV1S SV1V SV1a SV2D SV2P SV2a SV3 SV3a SV4K SV4M SV4a SVAL SVAM SVAW SVB SVC SVD "
@@ -102,7 +106,7 @@ def card_mark(card, sets, card_overrides):
     m = card_overrides.get(str(card["id"]))
     if m:
         return m
-    return sets.get(card.get("set") or "", "?")
+    return sets.get(card.get("set") or "") or mark_for_year()
 
 
 def main():
@@ -118,7 +122,8 @@ def main():
         m = card_mark(c, SETS, CARDS)
         c["mark"] = m
         stats[m] = stats.get(m, 0) + 1
-        if m == "?":
+        is_known = str(c["id"]) in CARDS or (c.get("set") or "") in SETS
+        if not is_known and not (c.get("category") == "energy" and str(c.get("name", "")).startswith("基本")):
             unknown.append((c.get("set"), c["id"], c.get("name")))
     tmp = DATA + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
