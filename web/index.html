@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ポケカ一覧（スタンダード）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>ポケカ一覧 <span class="sub">スタンダードレギュレーション</span></h1>
+  <div class="topbar-right">
+    <span id="updatedAt" class="updated-at"></span>
+    <button id="diffBtn" class="btn ghost" hidden>前回の差分</button>
+    <button id="updateBtn" class="btn primary">🔄 更新</button>
+  </div>
+</header>
+
+<div id="progressArea" class="progress-area" hidden>
+  <div class="progress-msg" id="progressMsg"></div>
+  <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+</div>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="pokemon">ポケモン <span class="count" id="count-pokemon"></span></button>
+  <button class="tab" data-tab="trainer">トレーナーズ <span class="count" id="count-trainer"></span></button>
+  <button class="tab" data-tab="energy">特殊エネルギー <span class="count" id="count-energy"></span></button>
+  <div class="tabs-right">
+    <input id="globalSearch" class="global-search" type="search" placeholder="全項目からキーワード検索">
+    <button id="clearFilters" class="btn ghost">フィルタ解除</button>
+    <span id="rowCount" class="row-count"></span>
+  </div>
+</nav>
+
+<main id="tableWrap" class="table-wrap">
+  <table id="grid">
+    <thead id="gridHead"></thead>
+    <tbody id="gridBody"></tbody>
+  </table>
+  <div id="sentinel"></div>
+  <div id="emptyMsg" class="empty" hidden></div>
+</main>
+
+<div id="filterPopup" class="filter-popup" hidden></div>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose">×</button>
+    <div id="modalBody" class="modal-body"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
