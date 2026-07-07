@@ -188,6 +188,7 @@ def parse_detail(card_id, page_html):
     abilities = []
     moves = []
     texts = []
+    energy_icons = []
 
     for title, body in sections:
         if title == "特性":
@@ -213,6 +214,7 @@ def parse_detail(card_id, page_html):
             t = clean_text(body)
             if t:
                 rules.append(t)
+            energy_icons += icons_to_jp(body)
         elif title in TRAINER_TYPES:
             card["trainerType"] = title
             t = clean_text(body)
@@ -223,16 +225,21 @@ def parse_detail(card_id, page_html):
             t = clean_text(body)
             if t:
                 texts.append(t)
-            card["types"] = sorted(set(icons_to_jp(body)))
+            energy_icons += icons_to_jp(body)
         else:
             t = clean_text(body)
             if t:
                 texts.append(f"■{title}\n{t}")
 
-    if "trainerType" in card:
-        card["category"] = "trainer"
-    elif "energyType" in card:
-        card["category"] = "energy"
+    if "trainerType" in card or "energyType" in card:
+        # トレーナーズ・エネルギーはルール文（古いカードでは効果本文がここに入る）も効果に含める
+        texts += rules
+        rules = []
+        if "energyType" in card:
+            card["types"] = sorted(set(energy_icons))
+            card["category"] = "energy"
+        else:
+            card["category"] = "trainer"
     else:
         card["category"] = "pokemon"
         card["abilities"] = abilities
