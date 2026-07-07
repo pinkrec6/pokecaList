@@ -18,9 +18,9 @@ MARKS = os.path.join(ROOT, "docs", "data", "marks.json")
 
 SETS = {}
 for s in ("SV1S SV1V SV1a SV2D SV2P SV2a SV3 SV3a SV4K SV4M SV4a SVAL SVAM SVAW SVB SVC SVD "
-          "SVEL SVEM SVF SVG SVHK SVHM SVJL SVJP SVK SVLN SVLS WCS23").split():
+          "SVEL SVEM SVF SVG SVJL SVJP WCS23").split():
     SETS[s] = "G"
-for s in "SV5K SV5M SV5a SV6 SV6a SV7 SV7a SV8 SV8a SVI SVM SVN".split():
+for s in "SV5K SV5M SV5a SV6 SV6a SV7 SV7a SV8 SV8a SVI SVM SVN SVHK SVHM SVK SVLN SVLS".split():
     SETS[s] = "H"
 for s in "SV9 SV9a SV10 SV11B SV11W SVOD SVOM M1L M1S M2 M2a".split():
     SETS[s] = "I"
