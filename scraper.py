@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 BASE = "https://www.pokemon-card.com"
 LIST_API = BASE + "/card-search/resultAPI.php"
 DETAIL_URL = BASE + "/card-search/details.php/card/{id}/regu/XY"
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "data")
 DATA_FILE = os.path.join(DATA_DIR, "cards.json")
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) pokecaList/1.0 (personal card list tool)"
 WORKERS = 2

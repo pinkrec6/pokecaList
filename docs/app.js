@@ -422,9 +422,23 @@ function showDiffModal() {
 }
 
 // ---------- データ読み込み・更新 ----------
+let staticMode = false; // GitHub Pages等、更新APIのない静的ホスティングで動作中か
+
+async function fetchCardData() {
+  try {
+    const res = await fetch("api/cards");
+    if (res.ok && (res.headers.get("content-type") || "").includes("json")) return await res.json();
+  } catch (e) { /* サーバーなし → 静的ファイルへフォールバック */ }
+  staticMode = true;
+  document.getElementById("updateBtn").hidden = true;
+  document.getElementById("autoUpdateNote").hidden = false;
+  const res = await fetch("data/cards.json");
+  if (!res.ok) return { cards: {}, updated_at: null, last_diff: null };
+  return await res.json();
+}
+
 async function loadCards() {
-  const res = await fetch("/api/cards");
-  const data = await res.json();
+  const data = await fetchCardData();
   allCards = Object.values(data.cards || {});
   updatedAt = data.updated_at;
   lastDiff = data.last_diff;
@@ -442,7 +456,7 @@ const progressMsg = document.getElementById("progressMsg");
 const progressFill = document.getElementById("progressFill");
 
 async function pollStatus() {
-  const res = await fetch("/api/status");
+  const res = await fetch("api/status");
   const st = await res.json();
   progressArea.hidden = false;
   progressMsg.textContent = st.message || "";
@@ -469,7 +483,7 @@ updateBtn.addEventListener("click", async () => {
   progressArea.hidden = false;
   progressMsg.textContent = "更新を開始しています…";
   progressFill.style.width = "0%";
-  await fetch("/api/update", { method: "POST" });
+  await fetch("api/update", { method: "POST" });
   pollStatus();
 });
 
@@ -513,7 +527,8 @@ document.getElementById("tableWrap").addEventListener("scroll", () => { if (!pop
 
 // 起動時：データ読み込み → 実行中の更新があれば進捗表示に復帰
 loadCards().then(async () => {
-  const st = await (await fetch("/api/status")).json();
+  if (staticMode) return;
+  const st = await (await fetch("api/status")).json();
   if (st.running) {
     updateBtn.disabled = true;
     updateBtn.textContent = "更新中…";

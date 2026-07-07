@@ -1,6 +1,3 @@
-# 取得したカードデータ（「更新」ボタンで再生成可能）
-data/
-
 __pycache__/
 *.pyc
 .claude/settings.local.json

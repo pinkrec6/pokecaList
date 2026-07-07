@@ -18,7 +18,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServe
 import scraper
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-WEB_DIR = os.path.join(ROOT, "web")
+WEB_DIR = os.path.join(ROOT, "docs")
 
 _status = {"running": False, "phase": "idle", "message": "", "done": 0, "total": 0,
            "last_diff": None, "error": None}

@@ -1,0 +1,47 @@
+name: カードデータ更新
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # 毎日 6:00 JST
+  workflow_dispatch: # Actionsタブから手動実行も可能
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-cards
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 差分取得
+        run: python -X utf8 scraper.py
+
+      - name: 変化の有無を判定
+        id: check
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          d = json.load(open("docs/data/cards.json", encoding="utf-8"))
+          diff = d.get("last_diff") or {}
+          changed = bool(diff.get("added") or diff.get("removed"))
+          print(f"changed={str(changed).lower()}")
+          EOF
+
+      - name: カードに変化があればコミット
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/cards.json
+          git commit -m "カードデータ自動更新"
+          git push
